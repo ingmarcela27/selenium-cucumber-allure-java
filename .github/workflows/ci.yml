@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: write   # 👈 NECESARIO para publicar en gh-pages
+  contents: write   # necesario para gh-pages
 
 jobs:
   test:
@@ -33,6 +33,7 @@ jobs:
         if: always()
         run: ./gradlew allureReport
 
+      # (opcional) Artifact para descarga
       - name: Upload Allure report as artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -40,7 +41,7 @@ jobs:
           name: allure-report
           path: build/reports/allure-report
 
-      # 🚀 PUBLICACIÓN A GITHUB PAGES
+      # 🚀 PUBLICACIÓN REAL A GITHUB PAGES
       - name: Publish Allure report to GitHub Pages
         if: always()
         uses: peaceiris/actions-gh-pages@v4
@@ -48,4 +49,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: build/reports/allure-report
-          destination_dir: .
+          force_orphan: true
