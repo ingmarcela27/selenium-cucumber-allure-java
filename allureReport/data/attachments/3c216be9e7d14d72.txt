@@ -1,0 +1,2 @@
+Scenario: I can access the subpages through the navigation bar
+Status: PASSED
