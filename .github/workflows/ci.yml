@@ -88,6 +88,10 @@ jobs:
       - name: Notify Google Chat Space
         if: always()
         run: |
+          if [ -z "${{ secrets.GCHAT_WEBHOOK_URL }}" ]; then
+            echo "⚠️ GCHAT_WEBHOOK_URL not set, skipping notification" 
+            exit 0 
+          fi
           STATUS="✅ PASSED"
           if [ "$FAILED" -gt 0 ]; then STATUS="❌ FAILED"; fi
 
