@@ -2,7 +2,7 @@ name: CI Selenium + Cucumber + Allure
 
 on:
   push:
-    branches: [ "**" ]
+    branches: ["**"]
   workflow_dispatch:
 
 permissions:
@@ -35,7 +35,7 @@ jobs:
         run: chmod +x gradlew
 
       # --------------------
-      # Run tests (parallel)
+      # Run tests
       # --------------------
       - name: Run Selenium tests
         run: ./gradlew clean test --parallel --max-workers=4
@@ -49,12 +49,12 @@ jobs:
           BRANCH="${GITHUB_REF##*/}"
           git fetch origin gh-pages || true
 
-          mkdir -p $RESULTS_DIR/history
+          mkdir -p "$RESULTS_DIR/history"
 
           if git show-ref --quiet refs/remotes/origin/gh-pages; then
             git checkout gh-pages
             if [ -d "$BRANCH/history" ]; then
-              cp -r "$BRANCH/history"/* "$GITHUB_WORKSPACE/$RESULTS_DIR/history/"
+              cp -r "$BRANCH/history/"* "$GITHUB_WORKSPACE/$RESULTS_DIR/history/"
             fi
             git checkout -
           fi
@@ -77,10 +77,10 @@ jobs:
 
           SUMMARY="$REPORT_DIR/widgets/summary.json"
 
-          echo "PASSED=$(jq '.statistic.passed' $SUMMARY)" >> $GITHUB_ENV
-          echo "FAILED=$(jq '.statistic.failed' $SUMMARY)" >> $GITHUB_ENV
-          echo "BROKEN=$(jq '.statistic.broken' $SUMMARY)" >> $GITHUB_ENV
-          echo "TOTAL=$(jq '.statistic.total' $SUMMARY)" >> $GITHUB_ENV
+          echo "PASSED=$(jq -r '.statistic.passed' "$SUMMARY")" >> $GITHUB_ENV
+          echo "FAILED=$(jq -r '.statistic.failed' "$SUMMARY")" >> $GITHUB_ENV
+          echo "BROKEN=$(jq -r '.statistic.broken' "$SUMMARY")" >> $GITHUB_ENV
+          echo "TOTAL=$(jq -r '.statistic.total' "$SUMMARY")" >> $GITHUB_ENV
 
       # --------------------
       # Notify Google Chat
@@ -89,22 +89,21 @@ jobs:
         if: always()
         run: |
           STATUS="✅ PASSED"
-          if [ "${{ env.FAILED }}" -gt 0 ]; then STATUS="❌ FAILED"; fi
+          if [ "$FAILED" -gt 0 ]; then STATUS="❌ FAILED"; fi
 
           BRANCH="${GITHUB_REF##*/}"
           REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/$BRANCH/"
 
+          PAYLOAD=$(cat <<EOF
+          {
+            "text": "🚀 Selenium CI – $STATUS\n\n🌿 Branch: $BRANCH\n✅ Passed: $PASSED\n❌ Failed: $FAILED\n⚠️ Broken: $BROKEN\n📊 Total: $TOTAL\n\n📄 Allure Report:\n$REPORT_URL"
+          }
+          EOF
+          )
+
           curl -X POST "${{ secrets.GCHAT_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"text\": \"🚀 Selenium CI – $STATUS\n\n\
-🌿 Branch: $BRANCH\n\
-✅ Passed: ${{ env.PASSED }}\n\
-❌ Failed: ${{ env.FAILED }}\n\
-⚠️ Broken: ${{ env.BROKEN }}\n\
-📊 Total: ${{ env.TOTAL }}\n\n\
-📄 Allure Report:\n$REPORT_URL\"
-            }"
+            -d "$PAYLOAD"
 
       # --------------------
       # Publish to GitHub Pages
@@ -129,9 +128,9 @@ jobs:
           git fetch origin
 
           for dir in */; do
-            BRANCH=${dir%/}
+            BRANCH="${dir%/}"
             if [ "$BRANCH" = "main" ]; then continue; fi
-            if ! git show-ref --quiet refs/remotes/origin/$BRANCH; then
+            if ! git show-ref --quiet "refs/remotes/origin/$BRANCH"; then
               echo "🧹 Removing $BRANCH"
               rm -rf "$BRANCH"
             fi
