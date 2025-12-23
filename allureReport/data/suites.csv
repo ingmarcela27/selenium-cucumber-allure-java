@@ -1,4 +1,4 @@
 "Status","Start Time","Stop Time","Duration in ms","Parent Suite","Suite","Sub Suite","Test Class","Test Method","Name","Description"
-"passed","Tue Dec 16 16:07:00 UTC 2025","Tue Dec 16 16:07:13 UTC 2025","13113","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","          To see the subpages
+"passed","Tue Dec 23 06:40:18 UTC 2025","Tue Dec 23 06:40:33 UTC 2025","15271","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","          To see the subpages
           Without logging in
           I can click the navigation bar links"
