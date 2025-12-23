@@ -41,21 +41,27 @@ jobs:
         run: ./gradlew clean test --parallel --max-workers=4
 
       # --------------------
-      # Load Allure history
+      # Load Allure history (CRITICAL)
       # --------------------
       - name: Load Allure history
         if: always()
         run: |
-          BRANCH="${GITHUB_REF##*/}"
           git fetch origin gh-pages || true
-          mkdir -p "$RESULTS_DIR/history"
+
           if git show-ref --quiet refs/remotes/origin/gh-pages; then
             git checkout gh-pages
-            if [ -d "$BRANCH/history" ]; then
-              cp -r "$BRANCH/history/"* "$GITHUB_WORKSPACE/$RESULTS_DIR/history/"
+
+            if [ -d allureReport/history ]; then
+              mkdir -p "$GITHUB_WORKSPACE/$RESULTS_DIR/history"
+              cp -r allureReport/history/* "$GITHUB_WORKSPACE/$RESULTS_DIR/history/"
+              echo "✅ Allure history loaded"
+            else
+              echo "ℹ️ No previous Allure history found"
             fi
+
             git checkout -
           fi
+
       # --------------------
       # Generate Allure report
       # --------------------
@@ -71,11 +77,14 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y jq
+
           SUMMARY="$REPORT_DIR/widgets/summary.json"
+
           echo "PASSED=$(jq -r '.statistic.passed' "$SUMMARY")" >> $GITHUB_ENV
           echo "FAILED=$(jq -r '.statistic.failed' "$SUMMARY")" >> $GITHUB_ENV
           echo "BROKEN=$(jq -r '.statistic.broken' "$SUMMARY")" >> $GITHUB_ENV
           echo "TOTAL=$(jq -r '.statistic.total' "$SUMMARY")" >> $GITHUB_ENV
+
       # --------------------
       # Notify Google Chat
       # --------------------
@@ -83,22 +92,26 @@ jobs:
         if: always()
         run: |
           if [ -z "${{ secrets.GCHAT_WEBHOOK_URL }}" ]; then
-            echo "⚠️ GCHAT_WEBHOOK_URL not set, skipping notification" 
-            exit 0 
+            echo "⚠️ GCHAT_WEBHOOK_URL not set, skipping notification"
+            exit 0
           fi
+
           STATUS="✅ PASSED"
           if [ "$FAILED" -gt 0 ]; then STATUS="❌ FAILED"; fi
-          BRANCH="${GITHUB_REF##*/}"
-          REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/$BRANCH/"
+
+          REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allureReport/"
+
           PAYLOAD=$(cat <<EOF
           {
-            "text": "🚀 Selenium CI – $STATUS\n\n🌿 Branch: $BRANCH\n✅ Passed: $PASSED\n❌ Failed: $FAILED\n⚠️ Broken: $BROKEN\n📊 Total: $TOTAL\n\n📄 Allure Report:\n$REPORT_URL"
+            "text": "🚀 Selenium CI – $STATUS\n\n✅ Passed: $PASSED\n❌ Failed: $FAILED\n⚠️ Broken: $BROKEN\n📊 Total: $TOTAL\n\n📄 Allure Report:\n$REPORT_URL"
           }
           EOF
           )
+
           curl -X POST "${{ secrets.GCHAT_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD"
+
       # --------------------
       # Publish to GitHub Pages
       # --------------------
@@ -108,25 +121,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          destination_dir: ${{ github.ref_name }}
-          publish_dir: ${{ env.REPORT_DIR }}/..
+          publish_dir: ${{ env.REPORT_DIR }}
+          destination_dir: allureReport
           keep_files: true
-
-      # --------------------
-      # Cleanup old branches
-      # --------------------
-      - name: Cleanup old branch reports
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git checkout gh-pages
-          git fetch origin
-          for dir in */; do
-            BRANCH="${dir%/}"
-            if [ "$BRANCH" = "main" ]; then continue; fi
-            if ! git show-ref --quiet "refs/remotes/origin/$BRANCH"; then
-              echo "🧹 Removing $BRANCH"
-              rm -rf "$BRANCH"
-            fi
-          done
-          git commit -am "Cleanup old reports" || true
-          git push origin gh-pages
