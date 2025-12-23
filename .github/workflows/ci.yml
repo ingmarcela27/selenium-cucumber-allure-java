@@ -31,7 +31,8 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - run: chmod +x gradlew
+      - name: Grant gradlew permission
+        run: chmod +x gradlew
 
       # --------------------
       # Run tests (parallel)
@@ -47,9 +48,9 @@ jobs:
         run: |
           BRANCH="${GITHUB_REF##*/}"
           git fetch origin gh-pages || true
-          
+
           mkdir -p $RESULTS_DIR/history
-          
+
           if git show-ref --quiet refs/remotes/origin/gh-pages; then
             git checkout gh-pages
             if [ -d "$BRANCH/history" ]; then
@@ -73,9 +74,9 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y jq
-          
+
           SUMMARY="$REPORT_DIR/widgets/summary.json"
-          
+
           echo "PASSED=$(jq '.statistic.passed' $SUMMARY)" >> $GITHUB_ENV
           echo "FAILED=$(jq '.statistic.failed' $SUMMARY)" >> $GITHUB_ENV
           echo "BROKEN=$(jq '.statistic.broken' $SUMMARY)" >> $GITHUB_ENV
@@ -89,10 +90,10 @@ jobs:
         run: |
           STATUS="✅ PASSED"
           if [ "${{ env.FAILED }}" -gt 0 ]; then STATUS="❌ FAILED"; fi
-          
+
           BRANCH="${GITHUB_REF##*/}"
           REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/$BRANCH/"
-          
+
           curl -X POST "${{ secrets.GCHAT_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "{
@@ -102,39 +103,39 @@ jobs:
 ❌ Failed: ${{ env.FAILED }}\n\
 ⚠️ Broken: ${{ env.BROKEN }}\n\
 📊 Total: ${{ env.TOTAL }}\n\n\
-  📄 Allure Report:\n$REPORT_URL\"
-  }"
-  
-  # --------------------
-  # Publish to GitHub Pages
-  # --------------------
-  - name: Publish Allure report
-    if: github.ref == 'refs/heads/main'
-    uses: peaceiris/actions-gh-pages@v4
-    with:
-      github_token: ${{ secrets.GITHUB_TOKEN }}
-      publish_branch: gh-pages
-      destination_dir: ${{ github.ref_name }}
-      publish_dir: ${{ env.REPORT_DIR }}
-      keep_files: true
+📄 Allure Report:\n$REPORT_URL\"
+            }"
 
-  # --------------------
-  # Cleanup old branches
-  # --------------------
-  - name: Cleanup old branch reports
-    if: github.ref == 'refs/heads/main'
-    run: |
-      git checkout gh-pages
-      git fetch origin
-      
-      for dir in */; do
-        BRANCH=${dir%/}
-        if [ "$BRANCH" = "main" ]; then continue; fi
-        if ! git show-ref --quiet refs/remotes/origin/$BRANCH; then
-          echo "🧹 Removing $BRANCH"
-          rm -rf "$BRANCH"
-        fi
-      done
-      
-      git commit -am "Cleanup old reports" || true
-      git push origin gh-pages
+      # --------------------
+      # Publish to GitHub Pages
+      # --------------------
+      - name: Publish Allure report
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          destination_dir: ${{ github.ref_name }}
+          publish_dir: ${{ env.REPORT_DIR }}
+          keep_files: true
+
+      # --------------------
+      # Cleanup old branches
+      # --------------------
+      - name: Cleanup old branch reports
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git checkout gh-pages
+          git fetch origin
+
+          for dir in */; do
+            BRANCH=${dir%/}
+            if [ "$BRANCH" = "main" ]; then continue; fi
+            if ! git show-ref --quiet refs/remotes/origin/$BRANCH; then
+              echo "🧹 Removing $BRANCH"
+              rm -rf "$BRANCH"
+            fi
+          done
+
+          git commit -am "Cleanup old reports" || true
+          git push origin gh-pages
