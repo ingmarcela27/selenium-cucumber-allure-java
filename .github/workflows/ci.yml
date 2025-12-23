@@ -119,7 +119,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           destination_dir: ${{ github.ref_name }}
-          publish_dir: ${{ env.REPORT_DIR }}
+          publish_dir: ${{ env.REPORT_DIR }}/..
           keep_files: true
 
       # --------------------
