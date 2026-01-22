@@ -14,10 +14,14 @@ dependencies {
     testImplementation 'io.cucumber:cucumber-java:7.33.0'
     testImplementation 'io.cucumber:cucumber-junit-platform-engine:7.33.0'
 
-    implementation 'org.seleniumhq.selenium:selenium-java:4.39.0'
+    // Source: https://mvnrepository.com/artifact/org.seleniumhq.selenium/selenium-java
+    implementation("org.seleniumhq.selenium:selenium-java:4.40.0")
     implementation 'io.github.bonigarcia:webdrivermanager:6.3.3'
 
     testImplementation 'org.junit.platform:junit-platform-suite:1.10.2'
+
+    //Opcional Logback - Logs para diagnostico en caso de fallas
+    //testImplementation 'ch.qos.logback:logback-classic:1.5.6'
 
     // === Allure ===
     testImplementation 'io.qameta.allure:allure-cucumber7-jvm:2.27.0'
@@ -26,6 +30,9 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    systemProperty "cucumber.execution.parallel.enabled", "true"
+    systemProperty "cucumber.execution.parallel.config.strategy", "fixed"
+    systemProperty "cucumber.execution.parallel.config.fixed.parallelism", "4"
 }
 
 allure {

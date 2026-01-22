@@ -1,44 +1,50 @@
 package pages;
 
+import org.openqa.selenium.*;
+import org.openqa.selenium.support.ui.*;
 import java.time.Duration;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.support.ui.WebDriverWait;
-import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
+
 
 public class BasePage {
 
-    protected static WebDriver driver;
+    protected WebDriver driver;
     protected WebDriverWait wait;
 
-    static {
-        WebDriverManager.chromedriver().setup();
-
-        ChromeOptions options = new ChromeOptions();
-
-        // 🔥 CLAVE PARA CI (GitHub Actions)
-        options.addArguments("--headless=new");
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--window-size=1920,1080");
-
-        driver = new ChromeDriver(options);
-    }
-
     public BasePage(WebDriver driver) {
-        BasePage.driver = driver;
-        this.wait = new WebDriverWait(driver, Duration.ofSeconds(2));
+        this.driver = driver;
+        this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
     }
 
-    public static void navigateTo(String url) {
+    protected void navigateTo(String url) {
         driver.get(url);
     }
 
-    public static void closeDriver() {
-        if (driver != null) {
-            driver.quit();
-            driver = null;
-        }
+    protected void clickWithJS(String locator) {
+        WebElement element = wait.until(
+                ExpectedConditions.presenceOfElementLocated(By.xpath(locator))
+        );
+
+        ((JavascriptExecutor) driver)
+                .executeScript("arguments[0].click();", element);
     }
+
+    protected void scrollToElement(String xpath) {
+        WebElement element = wait.until( ExpectedConditions.presenceOfElementLocated(By.xpath(xpath)) );
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+        js.executeScript("arguments[0].scrollIntoView({block: 'center'});", element);
+    }
+
+    protected By getBy(String locator) {
+        return By.xpath(locator);
+    }
+
+    protected void clickSafe(String xpath) {
+        scrollToElement(xpath);
+        wait.until(ExpectedConditions.elementToBeClickable(getBy(xpath)));
+        clickWithJS(xpath);
+    }
+
 }

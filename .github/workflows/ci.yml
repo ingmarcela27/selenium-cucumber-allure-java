@@ -2,7 +2,10 @@ name: CI Selenium + Cucumber + Allure
 
 on:
   push:
-    branches: ["**"]
+    branches:
+      - main
+      - develop
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -11,16 +14,23 @@ permissions:
 env:
   RESULTS_DIR: build/allure-results
   REPORT_DIR: build/reports/allure-report/allureReport
+  GRADLE_OPTS: "-Xmx2g -Dorg.gradle.workers.max=4"
+  CI: true
 
 jobs:
+  # =========================
+  # 1️⃣ TEST
+  # =========================
+
   test:
     runs-on: ubuntu-latest
 
     steps:
       # --------------------
-      # Checkout
+      # Checkout código
       # --------------------
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       # --------------------
       # Java
@@ -30,6 +40,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
       - name: Grant gradlew permission
         run: chmod +x gradlew
@@ -40,57 +51,122 @@ jobs:
       - name: Run Selenium tests
         run: ./gradlew clean test --parallel --max-workers=4
 
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: ${{ env.RESULTS_DIR }}
+
+  # =========================
+  # 2️⃣ REPORT
+  # =========================
+
+  report:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+
+    outputs:
+      passed: ${{ steps.metrics.outputs.passed }}
+      failed: ${{ steps.metrics.outputs.failed }}
+      broken: ${{ steps.metrics.outputs.broken }}
+      total: ${{ steps.metrics.outputs.total }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Allure results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: ${{ env.RESULTS_DIR }}
+
+      - name: Grant gradlew permission
+        run: chmod +x gradlew
+
       # --------------------
-      # Load Allure history (CRITICAL)
+      # Load Allure history
       # --------------------
       - name: Load Allure history
-        if: always()
+        #  if: always()
         run: |
           git fetch origin gh-pages || true
 
           if git show-ref --quiet refs/remotes/origin/gh-pages; then
-            git checkout gh-pages
+            git worktree add gh-pages origin/gh-pages
 
-            if [ -d allureReport/history ]; then
-              mkdir -p "$GITHUB_WORKSPACE/$RESULTS_DIR/history"
-              cp -r allureReport/history/* "$GITHUB_WORKSPACE/$RESULTS_DIR/history/"
-              echo "✅ Allure history loaded"
+            if [ -d gh-pages/allureReport/history ]; then
+              mkdir -p "$RESULTS_DIR/history"
+              cp -r gh-pages/allureReport/history/* "$RESULTS_DIR/history/"
+              echo "✅ Allure history restored"
             else
-              echo "ℹ️ No previous Allure history found"
+              echo "ℹ️ No Allure history found"
             fi
-
-            git checkout -
           fi
 
       # --------------------
       # Generate Allure report
       # --------------------
       - name: Generate Allure report
-        if: always()
+        #  if: always()
         run: ./gradlew allureReport
+
+      - name: Upload Allure report
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: ${{ env.REPORT_DIR }}
 
       # --------------------
       # Extract results
       # --------------------
-      - name: Extract Allure results
-        if: always()
+      - name: Extract Allure metrics
+        #  if: always()
+        id: metrics
         run: |
           sudo apt-get update -y
           sudo apt-get install -y jq
 
           SUMMARY="$REPORT_DIR/widgets/summary.json"
+          PASSED=$(jq -r '.statistic.passed' "$SUMMARY")
+          FAILED=$(jq -r '.statistic.failed' "$SUMMARY")
+          BROKEN=$(jq -r '.statistic.broken' "$SUMMARY")
+          TOTAL=$(jq -r '.statistic.total' "$SUMMARY")
 
           echo "PASSED=$(jq -r '.statistic.passed' "$SUMMARY")" >> $GITHUB_ENV
           echo "FAILED=$(jq -r '.statistic.failed' "$SUMMARY")" >> $GITHUB_ENV
           echo "BROKEN=$(jq -r '.statistic.broken' "$SUMMARY")" >> $GITHUB_ENV
           echo "TOTAL=$(jq -r '.statistic.total' "$SUMMARY")" >> $GITHUB_ENV
+          
+          # =========================
+          # 3️⃣ PUBLISH
+          # =========================                
+
+  publish:
+    needs: report
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Download Allure report
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-report
+          path: ${{ env.REPORT_DIR }}
 
       # --------------------
       # Notify Google Chat
       # --------------------
       - name: Notify Google Chat Space
-        if: always()
+        #  if: always()
         run: |
+          PASSED=${{ needs.report.outputs.passed }}
+          FAILED=${{ needs.report.outputs.failed }}
+          BROKEN=${{ needs.report.outputs.broken }}
+          TOTAL=${{ needs.report.outputs.total }}
+          
           if [ -z "${{ secrets.GCHAT_WEBHOOK_URL }}" ]; then
             echo "⚠️ GCHAT_WEBHOOK_URL not set, skipping notification"
             exit 0
@@ -115,7 +191,7 @@ jobs:
       # --------------------
       # Publish to GitHub Pages
       # --------------------
-      - name: Publish Allure report
+      - name: Publish Allure report to GitHub Pages
         if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
         with:

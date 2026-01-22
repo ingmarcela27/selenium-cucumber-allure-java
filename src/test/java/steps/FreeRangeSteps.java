@@ -1,26 +1,39 @@
 package steps;
 
-import io.cucumber.java.en.Given;
+import io.cucumber.java.en.*;
+import pages.PaginaCursos;
 import pages.PaginaPrincipal;
-import io.qameta.allure.Allure;
+import pages.PaginaRegistro;
 
-import static steps.DriverManager.getDriver;
 
 public class FreeRangeSteps {
 
-    PaginaPrincipal landingPage;
+    PaginaPrincipal landingpage = new PaginaPrincipal();
+    PaginaCursos cursosPage = new PaginaCursos();
+    PaginaRegistro registro = new PaginaRegistro();
 
-    @Given("I navigate to www.freerangetesters.com")
-    public void iNavigateToFRT() {
-
-        // Bloque de codigo para adjuntar logs personalizados al reporte, se puede colocar en cualquier step o paso.
-        //Ideal para datos usados, URLs, valores esperados vs actuales.
-        Allure.addAttachment(
-                "Navigation log",
-                "Navigated to FreeRangeTesters homepage successfully"
-        );
-
-        landingPage = new PaginaPrincipal(getDriver());
-        landingPage.navigateToFreeRangeTesters();
+    @Given("I navigate to FreeRangeTesters")
+    public void iNavigateToFreeRangeTesters() {
+        landingpage.navigateToFreeRangeTesters();
     }
+
+    @When("I go to {word} using the navigation bar")
+    public void navigationBarUse(String section) {
+        landingpage.clickOnSectionNavigationBar(section);
+    }
+
+    @And("I select Introduccion al Testing de Software")
+    public void navigateToIntro() {
+        cursosPage.clickIntroduccionTestingLink();}
+
+    @When("I select Elegir Plan")
+    public void iSelectElegirPlan() {
+        cursosPage.clickElegirPlan();
+    }
+
+    @Then("I am redirected to the checkout page")
+    public void iAmRedirectedToCheckout() {
+        registro.waitUntilCheckoutIsLoaded();
+    }
+
 }

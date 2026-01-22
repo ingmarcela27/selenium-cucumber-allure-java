@@ -1,54 +1,57 @@
 package hooks;
 
+import config.AllureEnvironmentWriter;
+import driver.DriverFactory;
+import driver.DriverManager;
 import io.cucumber.java.After;
+import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
 import io.qameta.allure.Attachment;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
-import pages.BasePage;
-import static steps.DriverManager.getDriver;
-import static steps.DriverManager.quitDriver;
 
+public class Hooks {
 
-public class Hooks extends BasePage {
+    private static boolean environmentWritten = false;
 
-    public Hooks() {
-        super(driver);
+    @Before
+    public void beforeScenario() {
+        DriverManager.setDriver(DriverFactory.createDriver());
+
+        if (!environmentWritten) {
+            AllureEnvironmentWriter.write();
+            environmentWritten = true;
+        }
     }
 
-        @After
-        public void afterScenario(Scenario scenario) {
-            attachScreenshot(scenario.getName());
-            attachScenarioStatus(scenario);
-            quitDriver();
+    @After
+    public void afterScenario(Scenario scenario) {
+
+        if (scenario.isFailed()) {
+            attachScreenshot();
+            attachFailureInfo(scenario);
         }
 
-        @Attachment(value = "Screenshot - {0}", type = "image/png")
-        public byte[] attachScreenshot(String scenarioName) {
-            return ((TakesScreenshot) getDriver())
-                    .getScreenshotAs(OutputType.BYTES);
+        DriverManager.quitDriver();
+    }
+
+    @Attachment(value = "Screenshot on failure", type = "image/png")
+    public byte[] attachScreenshot() {
+        if (DriverManager.getDriver() == null) {
+            return new byte[0];
         }
+        return ((TakesScreenshot) DriverManager.getDriver())
+                .getScreenshotAs(OutputType.BYTES);
+    }
 
-        @Attachment(value = "Scenario result")
-        public String attachScenarioStatus(Scenario scenario) {
-            return "Scenario: " + scenario.getName() +
-                    "\nStatus: " + scenario.getStatus();
-      }
-
+    @Attachment(value = "Failure details", type = "text/plain")
+    public String attachFailureInfo(Scenario scenario) {
+        return String.format(
+                "Scenario: %s%nStatus: %s%nThread: %s%nCI: %s%nBrowser: Chrome",
+                scenario.getName(),
+                scenario.getStatus(),
+                Thread.currentThread().getName(),
+                System.getenv("CI")
+        );
+    }
 }
-
-
-
-//metodo sacar screenshot solamente a los escenarios fallidos.
-
-// @After
-    //public void takeScreenshotOnFailure(Scenario scenario) {
-        //if (scenario.isFailed()) {
-            //saveScreenshot();
-        //}
-    //}
-//
-    //@Attachment(value = "Screenshot on failure", type = "image/png")
-    //public byte[] saveScreenshot() {
-        //return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-    //}
