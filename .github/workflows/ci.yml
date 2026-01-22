@@ -90,7 +90,6 @@ jobs:
       # Load Allure history
       # --------------------
       - name: Load Allure history
-        #  if: always()
         run: |
           git fetch origin gh-pages || true
 
@@ -110,7 +109,6 @@ jobs:
       # Generate Allure report
       # --------------------
       - name: Generate Allure report
-        #  if: always()
         run: ./gradlew allureReport
 
       - name: Upload Allure report
@@ -123,7 +121,6 @@ jobs:
       # Extract results
       # --------------------
       - name: Extract Allure metrics
-        #  if: always()
         id: metrics
         run: |
           sudo apt-get update -y
@@ -135,10 +132,10 @@ jobs:
           BROKEN=$(jq -r '.statistic.broken' "$SUMMARY")
           TOTAL=$(jq -r '.statistic.total' "$SUMMARY")
 
-          echo "PASSED=$(jq -r '.statistic.passed' "$SUMMARY")" >> $GITHUB_ENV
-          echo "FAILED=$(jq -r '.statistic.failed' "$SUMMARY")" >> $GITHUB_ENV
-          echo "BROKEN=$(jq -r '.statistic.broken' "$SUMMARY")" >> $GITHUB_ENV
-          echo "TOTAL=$(jq -r '.statistic.total' "$SUMMARY")" >> $GITHUB_ENV
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "broken=$BROKEN" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
           
           # =========================
           # 3️⃣ PUBLISH
@@ -160,26 +157,136 @@ jobs:
       # Notify Google Chat
       # --------------------
       - name: Notify Google Chat Space
-        #  if: always()
         run: |
           PASSED=${{ needs.report.outputs.passed }}
           FAILED=${{ needs.report.outputs.failed }}
           BROKEN=${{ needs.report.outputs.broken }}
           TOTAL=${{ needs.report.outputs.total }}
-          
+
           if [ -z "${{ secrets.GCHAT_WEBHOOK_URL }}" ]; then
             echo "⚠️ GCHAT_WEBHOOK_URL not set, skipping notification"
             exit 0
           fi
 
-          STATUS="✅ PASSED"
-          if [ "$FAILED" -gt 0 ]; then STATUS="❌ FAILED"; fi
+          # --------------------
+          # Status
+          # --------------------
+          STATUS_TEXT="PASSED"
+          STATUS_EMOJI="✅"
+          STATUS_COLOR="#34A853"
+
+          if [ "$FAILED" -gt 0 ]; then
+            STATUS_TEXT="FAILED"
+            STATUS_EMOJI="❌"
+            STATUS_COLOR="#EA4335"
+          fi
+
+          # --------------------
+          # Duration
+          # --------------------
+          START_TIME=$(date -d "${GITHUB_RUN_STARTED_AT}" +%s)
+          END_TIME=$(date +%s)
+          DURATION_SEC=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION_SEC / 60))
+          DURATION_REM=$((DURATION_SEC % 60))
+
+          # --------------------
+          # Commit info
+          # --------------------
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          COMMIT_AUTHOR="${{ github.actor }}"
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
 
           REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allureReport/"
 
           PAYLOAD=$(cat <<EOF
           {
-            "text": "🚀 Selenium CI – $STATUS\n\n✅ Passed: $PASSED\n❌ Failed: $FAILED\n⚠️ Broken: $BROKEN\n📊 Total: $TOTAL\n\n📄 Allure Report:\n$REPORT_URL"
+            "cardsV2": [
+              {
+                "cardId": "selenium-ci",
+                "card": {
+                  "header": {
+                    "title": "Selenium CI – ${STATUS_EMOJI} ${STATUS_TEXT}",
+                    "subtitle": "Branch: ${{ github.ref_name }}",
+                    "imageUrl": "https://avatars.githubusercontent.com/${{ github.repository_owner }}"
+                  },
+                  "sections": [
+                    {
+                      "widgets": [
+                        {
+                          "decoratedText": {
+                            "text": "<b>📊 Test Results</b>"
+                          }
+                        },
+                        {
+                          "decoratedText": {
+                            "text": "✅ Passed: <b>${PASSED}</b>"
+                          }
+                        },
+                        {
+                          "decoratedText": {
+                            "text": "❌ Failed: <b>${FAILED}</b>"
+                          }
+                        },
+                        {
+                          "decoratedText": {
+                            "text": "⚠️ Broken: <b>${BROKEN}</b>"
+                          }
+                        },
+                        {
+                          "decoratedText": {
+                            "text": "📈 Total: <b>${TOTAL}</b>"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "widgets": [
+                        {
+                          "decoratedText": {
+                            "text": "<b>⏱ Duration</b>: ${DURATION_MIN}m ${DURATION_REM}s"
+                          }
+                        },
+                        {
+                          "decoratedText": {
+                            "text": "<b>👤 Author</b>: ${COMMIT_AUTHOR}"
+                          }
+                        },
+                        {
+                          "decoratedText": {
+                            "text": "<b>🔖 Commit</b>: <a href='${COMMIT_URL}'>${COMMIT_SHA}</a>"
+                          }
+                        },
+                        {
+                          "decoratedText": {
+                            "text": "<i>${COMMIT_MSG}</i>"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "widgets": [
+                        {
+                          "buttonList": {
+                            "buttons": [
+                              {
+                                "text": "📄 View Allure Report",
+                                "onClick": {
+                                  "openLink": {
+                                    "url": "${REPORT_URL}"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
           }
           EOF
           )
@@ -187,6 +294,7 @@ jobs:
           curl -X POST "${{ secrets.GCHAT_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD"
+      
 
       # --------------------
       # Publish to GitHub Pages
