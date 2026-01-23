@@ -304,5 +304,3 @@ jobs:
           publish_dir: ${{ env.REPORT_DIR }}
           destination_dir: allureReport
           keep_files: true
-
-          #holaaa
