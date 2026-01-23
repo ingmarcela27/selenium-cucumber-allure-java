@@ -158,27 +158,37 @@ jobs:
       # --------------------
       - name: Notify Google Chat Space
         run: |
+          # --------------------
+          # Test metrics
+          # --------------------
           PASSED=${{ needs.report.outputs.passed }}
           FAILED=${{ needs.report.outputs.failed }}
           BROKEN=${{ needs.report.outputs.broken }}
           TOTAL=${{ needs.report.outputs.total }}
 
+          # --------------------
+          # Check webhook
+          # --------------------
           if [ -z "${{ secrets.GCHAT_WEBHOOK_URL }}" ]; then
             echo "⚠️ GCHAT_WEBHOOK_URL not set, skipping notification"
             exit 0
           fi
 
           # --------------------
-          # Status
+          # Status and color
           # --------------------
-          STATUS_TEXT="PASSED"
-          STATUS_EMOJI="✅"
-          STATUS_COLOR="#34A853"
-
           if [ "$FAILED" -gt 0 ]; then
             STATUS_TEXT="FAILED"
             STATUS_EMOJI="❌"
             STATUS_COLOR="#EA4335"
+          elif [ "$BROKEN" -gt 0 ]; then
+            STATUS_TEXT="BROKEN"
+            STATUS_EMOJI="⚠️"
+            STATUS_COLOR="#FBBC05"
+          else
+            STATUS_TEXT="PASSED"
+            STATUS_EMOJI="✅"
+            STATUS_COLOR="#34A853"
           fi
 
           # --------------------
@@ -191,15 +201,18 @@ jobs:
           DURATION_REM=$((DURATION_SEC % 60))
 
           # --------------------
-          # Commit info
+          # Branch real
           # --------------------
-          COMMIT_SHA=$(git rev-parse --short HEAD)
-          COMMIT_MSG=$(git log -1 --pretty=%s)
-          COMMIT_AUTHOR="${{ github.actor }}"
-          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+          BRANCH_NAME="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
 
+          # --------------------
+          # Report URL
+          # --------------------
           REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allureReport/"
 
+          # --------------------
+          # Payload JSON
+          # --------------------
           PAYLOAD=$(cat <<EOF
           {
             "cardsV2": [
@@ -208,61 +221,22 @@ jobs:
                 "card": {
                   "header": {
                     "title": "Selenium CI – ${STATUS_EMOJI} ${STATUS_TEXT}",
-                    "subtitle": "Branch: ${{ github.ref_name }}",
+                    "subtitle": "Branch: ${BRANCH_NAME}",
                     "imageUrl": "https://avatars.githubusercontent.com/${{ github.repository_owner }}"
                   },
                   "sections": [
                     {
                       "widgets": [
-                        {
-                          "decoratedText": {
-                            "text": "<b>📊 Test Results</b>"
-                          }
-                        },
-                        {
-                          "decoratedText": {
-                            "text": "✅ Passed: <b>${PASSED}</b>"
-                          }
-                        },
-                        {
-                          "decoratedText": {
-                            "text": "❌ Failed: <b>${FAILED}</b>"
-                          }
-                        },
-                        {
-                          "decoratedText": {
-                            "text": "⚠️ Broken: <b>${BROKEN}</b>"
-                          }
-                        },
-                        {
-                          "decoratedText": {
-                            "text": "📈 Total: <b>${TOTAL}</b>"
-                          }
-                        }
+                        {"decoratedText": {"text": "<b>📊 Test Results</b>"}},
+                        {"decoratedText": {"text": "✅ Passed: <b>${PASSED}</b>"}},
+                        {"decoratedText": {"text": "❌ Failed: <b>${FAILED}</b>"}},
+                        {"decoratedText": {"text": "⚠️ Broken: <b>${BROKEN}</b>"}},
+                        {"decoratedText": {"text": "📈 Total: <b>${TOTAL}</b>"}}
                       ]
                     },
                     {
                       "widgets": [
-                        {
-                          "decoratedText": {
-                            "text": "<b>⏱ Duration</b>: ${DURATION_MIN}m ${DURATION_REM}s"
-                          }
-                        },
-                        {
-                          "decoratedText": {
-                            "text": "<b>👤 Author</b>: ${COMMIT_AUTHOR}"
-                          }
-                        },
-                        {
-                          "decoratedText": {
-                            "text": "<b>🔖 Commit</b>: <a href='${COMMIT_URL}'>${COMMIT_SHA}</a>"
-                          }
-                        },
-                        {
-                          "decoratedText": {
-                            "text": "<i>${COMMIT_MSG}</i>"
-                          }
-                        }
+                        {"decoratedText": {"text": "<b>⏱ Duration</b>: ${DURATION_MIN}m ${DURATION_REM}s"}}
                       ]
                     },
                     {
@@ -272,11 +246,7 @@ jobs:
                             "buttons": [
                               {
                                 "text": "📄 View Allure Report",
-                                "onClick": {
-                                  "openLink": {
-                                    "url": "${REPORT_URL}"
-                                  }
-                                }
+                                "onClick": {"openLink": {"url": "${REPORT_URL}"}}
                               }
                             ]
                           }
@@ -291,10 +261,20 @@ jobs:
           EOF
           )
 
-          curl -X POST "${{ secrets.GCHAT_WEBHOOK_URL }}" \
+          # --------------------
+          # Send notification safely
+          # --------------------
+          RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/gchat_response.txt -X POST "${{ secrets.GCHAT_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD"
-      
+            -d "$PAYLOAD") || true
+
+          if [ "$RESPONSE" -ge 400 ]; then
+            echo "⚠️ Failed to send Google Chat notification. HTTP code: $RESPONSE"
+            cat /tmp/gchat_response.txt
+          else
+            echo "✅ Google Chat notification sent successfully."
+          fi
+
 
       # --------------------
       # Publish to GitHub Pages
