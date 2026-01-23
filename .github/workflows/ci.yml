@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
   pull_request:
   workflow_dispatch:
 
@@ -23,6 +24,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+
     steps:
       # --------------------
       # Checkout código
@@ -57,13 +59,14 @@ jobs:
           path: ${{ env.RESULTS_DIR }}
 
   # =========================
-  # 2️⃣ REPORTE
+  # 2️⃣ REPORT
   # =========================
 
   report:
     needs: test
     if: always()
     runs-on: ubuntu-latest
+
     outputs:
       passed: ${{ steps.metrics.outputs.passed }}
       failed: ${{ steps.metrics.outputs.failed }}
@@ -84,13 +87,15 @@ jobs:
         run: chmod +x gradlew
 
       # --------------------
-      # Carga Allure history
+      # Load Allure history
       # --------------------
       - name: Load Allure history
         run: |
           git fetch origin gh-pages || true
+
           if git show-ref --quiet refs/remotes/origin/gh-pages; then
             git worktree add gh-pages origin/gh-pages
+
             if [ -d gh-pages/allureReport/history ]; then
               mkdir -p "$RESULTS_DIR/history"
               cp -r gh-pages/allureReport/history/* "$RESULTS_DIR/history/"
@@ -101,7 +106,7 @@ jobs:
           fi
 
       # --------------------
-      # Generación Allure report
+      # Generate Allure report
       # --------------------
       - name: Generate Allure report
         run: ./gradlew allureReport
@@ -113,7 +118,7 @@ jobs:
           path: ${{ env.REPORT_DIR }}
 
       # --------------------
-      # Extraer resultados
+      # Extract results
       # --------------------
       - name: Extract Allure metrics
         id: metrics
@@ -131,15 +136,15 @@ jobs:
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
           echo "broken=$BROKEN" >> $GITHUB_OUTPUT
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
-          
- # =========================
- # 3️⃣ PUBLICACIÓN
- # =========================
+
+  # =========================
+  # 3️⃣ PUBLISH
+  # =========================
 
   publish:
     needs: report
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    if: always()
 
     steps:
       - name: Download Allure report
@@ -149,7 +154,7 @@ jobs:
           path: ${{ env.REPORT_DIR }}
 
       # --------------------
-      # Notificación Google Chat
+      # Notify Google Chat
       # --------------------
       - name: Notify Google Chat Space
         run: |
@@ -186,9 +191,9 @@ jobs:
             STATUS_COLOR="#34A853"
           fi
 
-        # --------------------
-        # Duración
-        # --------------------
+          # --------------------
+          # Duration
+          # --------------------
           START_TIME=$(date -d "${GITHUB_RUN_STARTED_AT}" +%s)
           END_TIME=$(date +%s)
           DURATION_SEC=$((END_TIME - START_TIME))
@@ -270,33 +275,11 @@ jobs:
             echo "✅ Google Chat notification sent successfully."
           fi
 
-
-          if [ "$RESPONSE" -ge 400 ]; then
-            echo "⚠️ Failed to send Google Chat notification. HTTP code: $RESPONSE"
-            cat /tmp/gchat_response.txt
-          else
-            echo "✅ Google Chat notification sent successfully."
-          fi
-
-
-          if [ "$RESPONSE" -ge 400 ]; then
-            echo "⚠️ Failed to send Google Chat notification. HTTP code: $RESPONSE"
-            cat /tmp/gchat_response.txt
-          else
-            echo "✅ Google Chat notification sent successfully."
-          fi
-
-
-          if [ "$RESPONSE" != "200" ]; then
-            echo "⚠️ Google Chat notification failed (HTTP $RESPONSE)"
-          else
-            echo "✅ Google Chat notification sent successfully"
-          fi
-
-      # ---------------------------
-      # Publicación en GitHub Pages
-      # ---------------------------
+      # --------------------
+      # Publish to GitHub Pages
+      # --------------------
       - name: Publish Allure report to GitHub Pages
+        if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -304,5 +287,3 @@ jobs:
           publish_dir: ${{ env.REPORT_DIR }}
           destination_dir: allureReport
           keep_files: true
-
-          #holaaa
