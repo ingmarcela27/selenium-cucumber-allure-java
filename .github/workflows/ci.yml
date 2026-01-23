@@ -153,27 +153,37 @@ jobs:
       # --------------------
       - name: Notify Google Chat Space
         run: |
+          # --------------------
+          # Test metrics
+          # --------------------
           PASSED=${{ needs.report.outputs.passed }}
           FAILED=${{ needs.report.outputs.failed }}
           BROKEN=${{ needs.report.outputs.broken }}
           TOTAL=${{ needs.report.outputs.total }}
 
+          # --------------------
+          # Check webhook
+          # --------------------
           if [ -z "${{ secrets.GCHAT_WEBHOOK_URL }}" ]; then
             echo "⚠️ GCHAT_WEBHOOK_URL not set, skipping notification"
             exit 0
           fi
 
-      # --------------------
-      # Status y colores
-      # --------------------
-          STATUS_TEXT="PASSED"
-          STATUS_EMOJI="✅"
-          STATUS_COLOR="#34A853"
-
+          # --------------------
+          # Status and color
+          # --------------------
           if [ "$FAILED" -gt 0 ]; then
             STATUS_TEXT="FAILED"
             STATUS_EMOJI="❌"
             STATUS_COLOR="#EA4335"
+          elif [ "$BROKEN" -gt 0 ]; then
+            STATUS_TEXT="BROKEN"
+            STATUS_EMOJI="⚠️"
+            STATUS_COLOR="#FBBC05"
+          else
+            STATUS_TEXT="PASSED"
+            STATUS_EMOJI="✅"
+            STATUS_COLOR="#34A853"
           fi
 
         # --------------------
@@ -185,23 +195,19 @@ jobs:
           DURATION_MIN=$((DURATION_SEC / 60))
           DURATION_REM=$((DURATION_SEC % 60))
 
-        # --------------------
-        # Branch dinámico
-        # --------------------
-         if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-          BRANCH_NAME="${GITHUB_HEAD_REF}"
-         else
-          BRANCH_NAME="main"
-         fi
+          # --------------------
+          # Branch real
+          # --------------------
+          BRANCH_NAME="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
 
-        # --------------------
-        # URL del reporte
-        # --------------------
+          # --------------------
+          # Report URL
+          # --------------------
           REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allureReport/"
 
-        # --------------------
-        # Payload JSON
-        # --------------------
+          # --------------------
+          # Payload JSON
+          # --------------------
           PAYLOAD=$(cat <<EOF
           {
             "cardsV2": [
@@ -250,13 +256,20 @@ jobs:
           EOF
           )
 
-          # ---------------------------------------------------
-          # Enviar notificación Google Chat sin romper pipeline
-          # ---------------------------------------------------
-
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.GCHAT_WEBHOOK_URL }}" \
+          # --------------------
+          # Send notification safely
+          # --------------------
+          RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/gchat_response.txt -X POST "${{ secrets.GCHAT_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD") || true
+
+          if [ "$RESPONSE" -ge 400 ]; then
+            echo "⚠️ Failed to send Google Chat notification. HTTP code: $RESPONSE"
+            cat /tmp/gchat_response.txt
+          else
+            echo "✅ Google Chat notification sent successfully."
+          fi
+
 
           if [ "$RESPONSE" != "200" ]; then
             echo "⚠️ Google Chat notification failed (HTTP $RESPONSE)"
