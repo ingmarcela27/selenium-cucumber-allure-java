@@ -153,6 +153,15 @@ jobs:
           name: allure-report
           path: ${{ env.REPORT_DIR }}
 
+      # ✅ DEBUG: verificar qué quedó realmente en REPORT_DIR
+      - name: Debug report folder
+        run: |
+          echo "REPORT_DIR=$REPORT_DIR"
+          ls -la "$REPORT_DIR" || true
+          echo "Searching for index.html..."
+          find "$REPORT_DIR" -maxdepth 4 -name "index.html" -print || true   
+          
+
       # --------------------
       # Notify Google Chat
       # --------------------
