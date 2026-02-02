@@ -6,6 +6,8 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "0 13 * * *" # 8:00 AM Colombia (UTC-5) = 13:00 UTC
 
 permissions:
   contents: write # necesario para gh-pages
@@ -144,6 +146,7 @@ jobs:
   publish:
     needs: report
     runs-on: ubuntu-latest
+    # publish solo cuando el run está en main (push/merge a main, schedule o manual sobre main)
     if: github.ref == 'refs/heads/main'
 
     steps:
