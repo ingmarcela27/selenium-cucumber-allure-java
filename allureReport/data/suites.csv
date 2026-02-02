@@ -1,25 +1,25 @@
 "Status","Start Time","Stop Time","Duration in ms","Parent Suite","Suite","Sub Suite","Test Class","Test Method","Name","Description"
-"passed","Sat Jan 31 08:12:10 UTC 2026","Sat Jan 31 08:12:26 UTC 2026","15865","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
+"passed","Mon Feb 02 04:34:15 UTC 2026","Mon Feb 02 04:34:39 UTC 2026","23621","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
   Without logging in
   I can click the navigation bar links"
-"passed","Sat Jan 31 08:12:08 UTC 2026","Sat Jan 31 08:12:29 UTC 2026","20354","","Navigation bar","","Courses are presented correctly to potential customers","","Courses are presented correctly to potential customers","  To see the subpages
+"passed","Mon Feb 02 04:34:12 UTC 2026","Mon Feb 02 04:34:37 UTC 2026","25167","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
   Without logging in
   I can click the navigation bar links"
-"passed","Sat Jan 31 08:12:10 UTC 2026","Sat Jan 31 08:12:27 UTC 2026","17255","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
+"passed","Mon Feb 02 04:34:12 UTC 2026","Mon Feb 02 04:34:40 UTC 2026","27294","","Navigation bar","","Courses are presented correctly to potential customers","","Courses are presented correctly to potential customers","  To see the subpages
   Without logging in
   I can click the navigation bar links"
-"passed","Sat Jan 31 08:12:10 UTC 2026","Sat Jan 31 08:12:26 UTC 2026","15904","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
+"broken","Mon Feb 02 04:34:12 UTC 2026","Mon Feb 02 04:34:51 UTC 2026","39147","","Navigation bar","","Users can select a plan when signing up","","Users can select a plan when signing up","  To see the subpages
   Without logging in
   I can click the navigation bar links"
-"passed","Sat Jan 31 08:12:08 UTC 2026","Sat Jan 31 08:12:26 UTC 2026","17535","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
+"passed","Mon Feb 02 04:34:15 UTC 2026","Mon Feb 02 04:34:36 UTC 2026","21193","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
   Without logging in
   I can click the navigation bar links"
-"broken","Sat Jan 31 08:12:08 UTC 2026","Sat Jan 31 08:12:40 UTC 2026","31697","","Navigation bar","","Users can select a plan when signing up","","Users can select a plan when signing up","  To see the subpages
+"passed","Mon Feb 02 04:34:15 UTC 2026","Mon Feb 02 04:34:37 UTC 2026","21974","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
   Without logging in
   I can click the navigation bar links"
-"passed","Sat Jan 31 08:12:08 UTC 2026","Sat Jan 31 08:12:36 UTC 2026","28216","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
+"passed","Mon Feb 02 04:34:12 UTC 2026","Mon Feb 02 04:34:37 UTC 2026","25052","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
   Without logging in
   I can click the navigation bar links"
-"passed","Sat Jan 31 08:12:10 UTC 2026","Sat Jan 31 08:12:28 UTC 2026","17445","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
+"passed","Mon Feb 02 04:34:15 UTC 2026","Mon Feb 02 04:34:38 UTC 2026","23131","","Navigation bar","","I can access the subpages through the navigation bar","","I can access the subpages through the navigation bar","  To see the subpages
   Without logging in
   I can click the navigation bar links"
