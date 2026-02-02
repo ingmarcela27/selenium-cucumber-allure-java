@@ -210,7 +210,7 @@ jobs:
           # Report URL + Button text
           # --------------------
          
-          REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allureReport/"
+          REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allureReport/?v=${GITHUB_RUN_ID}"
           BUTTON_TEXT="📄 View Report (Pages)"
          
 

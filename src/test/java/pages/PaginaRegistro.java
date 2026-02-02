@@ -9,6 +9,6 @@ public class PaginaRegistro extends BasePage {
         super(DriverManager.getDriver());
     }
 
-    //public void waitUntilCheckoutIsLoaded() {wait.until(ExpectedConditions.urlContains("payment"));}
-   public void waitUntilCheckoutIsLoaded() { wait.until(ExpectedConditions.urlContains("checkout"));}
+    public void waitUntilCheckoutIsLoaded() {wait.until(ExpectedConditions.urlContains("payment"));}
+   //public void waitUntilCheckoutIsLoaded() { wait.until(ExpectedConditions.urlContains("checkout"));}
 }
