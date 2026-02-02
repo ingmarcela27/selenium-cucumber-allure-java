@@ -111,6 +111,7 @@ jobs:
         run: ./gradlew allureReport
 
       - name: Upload Allure report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
@@ -143,7 +144,7 @@ jobs:
   publish:
     needs: report
     runs-on: ubuntu-latest
-    if: always()
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Download Allure report
@@ -152,14 +153,6 @@ jobs:
           name: allure-report
           path: ${{ env.REPORT_DIR }}
 
-      # ✅ DEBUG: verificar qué quedó realmente en REPORT_DIR
-      - name: Debug report folder
-        run: |
-          echo "REPORT_DIR=$REPORT_DIR"
-          ls -la "$REPORT_DIR" || true
-          echo "Searching for index.html..."
-          find "$REPORT_DIR" -maxdepth 4 -name "index.html" -print || true   
-          
 
       # --------------------
       # Notify Google Chat
@@ -215,15 +208,11 @@ jobs:
 
           # --------------------
           # Report URL + Button text
-          # main => GitHub Pages, others => GitHub Actions run
           # --------------------
-          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allureReport/"
-            BUTTON_TEXT="📄 View Report (Pages)"
-          else
-            REPORT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            BUTTON_TEXT="🔎 View Run (Actions)"
-          fi
+         
+          REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allureReport/"
+          BUTTON_TEXT="📄 View Report (Pages)"
+         
 
           # --------------------
           # Payload JSON
@@ -237,7 +226,7 @@ jobs:
                   "header": {
                     "title": "Selenium CI – ${STATUS_EMOJI} ${STATUS_TEXT}",
                     "subtitle": "Branch: ${BRANCH_NAME}",
-                    "imageUrl": "https://fonts.gstatic.com/s/i/materialiconsoutlined/fact_check/v14/24px.svg"
+                    "imageUrl": "https://avatars.githubusercontent.com/${{ github.repository_owner }}"
                   },
                   "sections": [
                     {
