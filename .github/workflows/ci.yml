@@ -147,7 +147,7 @@ jobs:
     needs: report
     runs-on: ubuntu-latest
     # publish solo cuando el run está en main (push/merge a main, schedule o manual sobre main)
-    if: github.ref == 'refs/heads/main'
+    if: always() && github.ref == 'refs/heads/main'
 
     steps:
       - name: Download Allure report
