@@ -146,8 +146,8 @@ jobs:
   publish:
     needs: report
     runs-on: ubuntu-latest
-    # publish solo cuando el run está en main (push/merge a main, schedule o manual sobre main)
-    if: always() && github.ref == 'refs/heads/main'
+    # Ejecuta publish SIEMPRE (aunque fallen tests) pero SOLO en main y SOLO cuando el run es programado (schedule) o manual (workflow_dispatch)
+    if: always() && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
     steps:
       - name: Download Allure report
