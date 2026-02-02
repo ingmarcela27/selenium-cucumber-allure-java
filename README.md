@@ -49,7 +49,7 @@ Push / PR / Manual
         ↓
     REPORT JOB
         ↓
-   PUBLISH JOB
+   PUBLISH JOB  (solo main + manual/schedule)
       ↙     ↘
 GitHub Pages  Google Chat
 ```
@@ -61,9 +61,41 @@ GitHub Pages  Google Chat
 
 Este workflow está dividido en **3 jobs**:
 
-1. **test:** ejecuta pruebas y sube `allure-results` como *artifact*
-2. **report:** genera HTML de Allure, restaura *history* y extrae métricas
-3. **publish:** notifica a Google Chat + publica a GitHub Pages (`gh-pages`)
+1. **test:** 
+- Ejecuta pruebas
+- Sube `allure-results` como *artifact*
+
+2. **report:** 
+- Descarga resultados
+- (Opcional) restaura *history* desde gh-pages
+- Genera HTML (ejemplo: ./gradlew allureReport)
+- Extrae métricas y las expone como outputs: passed, failed, broken, total.
+
+3. **publish:** 
+- Descarga el artifact del reporte HTML
+- Valida que exista *index.html* 
+- Notifica a Google Chat con métricas y link
+- Publica a Pages (rama *gh-pages* / carpeta *allureReport*)
+
+---
+
+## 🚦 Cuándo se ejecuta (y cuándo publica)
+
+### ✅ El workflow se dispara con:
+- **Push** a `main`
+- **Pull Request**
+- **Manual** (`workflow_dispatch`)
+- **Schedule diario**
+    - `0 13 * * *` → **13:00 UTC = 8:00 AM Colombia (UTC-5)**
+
+### ✅ Importante: la publicación a Pages NO ocurre en cada push/PR
+El job **`publish`** está diseñado para correr **solo** cuando:
+
+- **Rama:** `main`
+- **Evento:** `schedule` **o** `workflow_dispatch`
+
+Esto evita “spam” de publicaciones por cada cambio.  
+En **push/PR** se generan **artifacts** y **métricas**, pero **no se publica**.
 
 ---
 
@@ -101,7 +133,7 @@ Además del workflow, en el repo debes habilitar permisos de escritura para Acti
     - **Folder:** `/ (root)`
 4. **Save**
 
-⚠️ **Nota:** la rama `gh-pages` aparece solo después de que el workflow publique por primera vez (en `main`).
+⚠️ **Nota:** la rama `gh-pages` aparecerá solo después de la primera publicación exitosa (manual o schedule en main).
 
 ---
 
@@ -130,59 +162,7 @@ Se usa para enviar la notificación al Space.
 3. **Name:** `GCHAT_WEBHOOK_URL`
 4. **Value:** (pegar URL)
 
-✅ Si no configuras este secret, el workflow no falla; solo salta la notificación.
----
-## ▶️ Cómo ejecutar
-
-El workflow se ejecuta en:
-
-- Push a `main` o `develop`
-- Pull Request
-- Manual (`workflow_dispatch`)
-
-📌 **Importante:** la publicación a Pages solo ocurre en `main` (por seguridad y limpieza):
-
-```yaml
-if: github.ref == 'refs/heads/main'
-```
-
-----
-
-## 📌 Dónde ver el reporte publicado
-
-Cuando el job **publish** corre en `main`, el reporte queda en:
-
-`https://<owner>.github.io/<repo>/allureReport/`
-
-> `allureReport` viene de `destination_dir: allureReport`.
-> 
----
-
-## 🔁 Cómo reutilizar este building block en tu proyecto (paso a paso)
-
-### Opción 1: Copiar el job `publish` (recomendado si ya generas HTML)
-
-1. Copia el job `publish` de `.github/workflows/ci.yml`.
-2. Asegúrate de que tu pipeline tenga el HTML en una carpeta (tu `REPORT_DIR`).
-3. Ajusta en tu workflow:
-    - `REPORT_DIR` (ruta real del HTML en tu proyecto)
-    - `destination_dir` (cómo quieres que aparezca en Pages)
-4. Configura:
-    - GitHub Pages
-    - Permisos del repo (Actions)
-    - Secret `GCHAT_WEBHOOK_URL`
-
-✅ Con eso ya publicas y notificas.
-
-
-### Opción 2: Copiar `report` + `publish` (si tienes `allure-results` pero no HTML)
-
-Si ya generas `allure-results`, puedes copiar también el job `report` para generar el HTML.
-
-**Valida:**
-- Que tu ruta de resultados sea correcta (`RESULTS_DIR`)
-- Que el comando para generar el reporte exista (en este repo es `./gradlew allureReport`)
-
+- ✅ Si no configuras este secret, el workflow no falla; solo salta la notificación.
 ---
 
 ## 🛠️ Variables importantes (para adaptar rápido)
@@ -201,12 +181,109 @@ env:
 
 ---
 
+
 ## 🧪 Qué hace especial este workflow
 
-- ✅ Restaura **Allure history** desde `gh-pages` para mantener tendencias
-- ✅ Extrae métricas desde `summary.json` y las envía a Google Chat
-- ✅ No falla si el webhook no existe (comportamiento seguro)
-- ✅ Publica en GitHub Pages usando `peaceiris/actions-gh-pages@v4` y `keep_files: true`
+### ✅ 1) Restaura Allure history automáticamente (tendencias)
+En el job **`report`**:
+
+- Hace `git fetch` de `gh-pages`
+- Monta un `worktree`
+- Si existe `allureReport/history`, lo copia a `allure-results/history`
+
+✅ Resultado: Allure puede generar **tendencias** entre ejecuciones.
+
+---
+
+### ✅ 2) Extrae métricas reales del reporte
+Lee el archivo:
+
+- `${REPORT_DIR}/widgets/summary.json`
+
+Y expone como **outputs**:
+
+- `passed`
+- `failed`
+- `broken`
+- `total`
+
+Luego el job **`publish`** usa esas métricas para la notificación.
+
+---
+
+### ✅ 3) Publica solo cuando debe (main + manual/schedule)
+Evita:
+
+- Publicar por cada `push`
+- Publicar en `pull_request`
+
+Pero igual deja evidencia (**artifacts**) y métricas para debugging.
+
+---
+
+### ✅ 4) Cache-busting del link del reporte
+El link que llega en Google Chat incluye:
+
+- `?v=${GITHUB_RUN_ID}`
+
+Esto ayuda a evitar que el navegador muestre un reporte “viejo” por caché.
+
+
+---
+
+## ▶️ Cómo ejecutar (recomendado)
+
+### Opción 1: Ejecutarlo manualmente (para probar Pages ya)
+
+1. GitHub → **Actions**
+2. Selecciona el **workflow**
+3. Haz clic en **Run workflow**
+
+✅ Esto sí dispara **publish** (si estás en `main`).
+
+---
+
+### Opción 2: Esperar el schedule
+
+Se ejecuta automáticamente **todos los días** a:
+
+- **8:00 AM Colombia** (**13:00 UTC**)
+
+
+----
+
+## 📌 Dónde ver el reporte publicado
+
+Cuando el job **publish** corre en `main`, el reporte queda en:
+
+`https://<owner>.github.io/<repo>/allureReport/`
+
+> `allureReport` viene de `destination_dir: allureReport`.
+> 
+---
+
+## 🔁 Cómo reutilizar este building block en tu proyecto
+
+### ✅ Opción 1: Copiar solo el job `publish` (si ya generas HTML)
+
+1. Copia el job `publish` a tu workflow.
+2. Asegúrate de tener el HTML en tu `REPORT_DIR` (debe existir `index.html`).
+3. Ajusta:
+    - `REPORT_DIR`
+    - `destination_dir` (opcional)
+4. Configura:
+    - GitHub Pages
+    - Permisos del repo (Actions)
+    - Secret `GCHAT_WEBHOOK_URL`
+
+---
+
+### 🧪 Opción 2: Copiar `report` + `publish` (si tienes `allure-results`)
+
+Si ya produces `allure-results`, copia `report` + `publish` y asegúrate de:
+
+- `RESULTS_DIR` apunta a donde guardas los resultados
+- Existe un comando equivalente a `./gradlew allureReport`
 
 ---
 
@@ -223,6 +300,39 @@ env:
 
 ---
 
+## 🧯 Troubleshooting rápido
+
+### “❌ No index.html found…”
+**Posibles causas:**
+- Tu `REPORT_DIR` no está apuntando al HTML real
+- El reporte no se generó
+- Cambió la ruta en tu framework
+
+**Solución:**
+- Revisa el output real del build y ajusta `REPORT_DIR`
+
+---
+
+### No aparece `gh-pages`
+**Posibles causas:**
+- No has ejecutado **manual** o **schedule** en `main` (push/PR **NO** publica)
+- Faltan permisos de escritura en Actions
+
+**Solución:**
+- Corre el workflow manualmente desde **Actions** (en `main`)
+- Habilita **Read and write permissions**
+
+---
+
+### No llega mensaje a Google Chat
+**Posibles causas:**
+- `GCHAT_WEBHOOK_URL` no existe o está mal
+- El workflow lo omite de forma segura
+
+**Solución:**
+- Revisa el secret y prueba el webhook
+
+---
 ## 📌 Sugerencia de uso corporativo (para equipos)
 
 Este repo puede servir como:
