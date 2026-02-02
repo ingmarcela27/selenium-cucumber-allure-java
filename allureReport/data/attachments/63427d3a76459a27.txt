@@ -1,0 +1,5 @@
+Scenario: Users can select a plan when signing up
+Status: FAILED
+Thread: ForkJoinPool-2-worker-1
+CI: true
+Browser: Chrome
