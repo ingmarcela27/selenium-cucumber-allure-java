@@ -1,0 +1,5 @@
+Scenario: I can access the subpages through the navigation bar
+Status: FAILED
+Thread: ForkJoinPool-2-worker-8
+CI: true
+Browser: Chrome
